@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>새 태스크 캡처</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #ffffff; color: #1a1a1a;
+    padding: 20px; font-size: 14px; line-height: 1.5;
+  }
+  .header { margin-bottom: 20px; }
+  .header h1 { font-size: 17px; font-weight: 600; margin-bottom: 3px; }
+  .header .date { font-size: 12px; color: #888; }
+  .badges { display: flex; gap: 6px; margin-top: 8px; }
+  .badge { font-size: 11px; font-weight: 500; padding: 2px 9px; border-radius: 6px; display: inline-flex; align-items: center; }
+  .badge-today { background: #EEEDFE; color: #3C3489; }
+  .badge-later { background: #F1EFE8; color: #444441; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .stat { background: #f7f7f5; border-radius: 8px; padding: 10px 12px; }
+  .stat-label { font-size: 11px; color: #888; margin-bottom: 3px; }
+  .stat-value { font-size: 20px; font-weight: 600; color: #1a1a1a; }
+  .input-area { margin-bottom: 16px; }
+  .main-input {
+    width: 100%; padding: 9px 12px; font-size: 14px;
+    border: 1px solid #e0e0e0; border-radius: 8px;
+    outline: none; color: #1a1a1a; background: #fff; margin-bottom: 8px;
+  }
+  .main-input:focus { border-color: #7F77DD; box-shadow: 0 0 0 2px #EEEDFE; }
+  .memo-input {
+    width: 100%; padding: 7px 12px; font-size: 12px;
+    border: 1px solid #e8e8e8; border-radius: 8px;
+    outline: none; color: #1a1a1a; background: #fafafa;
+    margin-bottom: 8px; resize: none; height: 34px; font-family: inherit;
+  }
+  .memo-input:focus { border-color: #7F77DD; background: #fff; }
+  .meta-row { display: flex; gap: 7px; flex-wrap: wrap; }
+  .mini-input {
+    font-size: 12px; padding: 6px 10px;
+    border: 1px solid #e8e8e8; border-radius: 7px;
+    background: #fafafa; color: #1a1a1a; outline: none;
+    height: 32px; flex: 1; min-width: 110px;
+  }
+  .mini-input:focus { border-color: #7F77DD; }
+  input[type="date"].mini-input { min-width: 140px; cursor: pointer; }
+  select.mini-input { cursor: pointer; min-width: 130px; flex: 0 0 auto; }
+  .section { margin-bottom: 18px; }
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: .06em;
+    text-transform: uppercase; color: #aaa; margin-bottom: 8px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .label-actions { display: flex; gap: 10px; align-items: center; }
+  .clear-btn { font-size: 11px; color: #bbb; cursor: pointer; font-weight: 400; text-transform: none; letter-spacing: 0; }
+  .clear-btn:hover { color: #e24b4a; }
+  .del-sel-btn { font-size: 11px; color: #e24b4a; cursor: pointer; font-weight: 500; text-transform: none; letter-spacing: 0; display: none; }
+  .del-sel-btn.on { display: inline; }
+  .card { background: #fff; border: 1px solid #ebebeb; border-radius: 10px; padding: 4px 14px; }
+  .empty { font-size: 13px; color: #ccc; padding: 14px 0; text-align: center; }
+  .task-row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid #f2f2f2; }
+  .task-row:last-child { border-bottom: none; }
+  .task-row:first-child { padding-top: 6px; }
+  .task-check {
+    width: 16px; height: 16px; border-radius: 4px;
+    border: 1.5px solid #d0d0d0; cursor: pointer;
+    flex-shrink: 0; margin-top: 3px;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff; transition: all .15s;
+  }
+  .task-check:hover { border-color: #7F77DD; }
+  .task-check.done { background: #7F77DD; border-color: #7F77DD; }
+  .task-body { flex: 1; min-width: 0; }
+  .task-text { font-size: 14px; color: #1a1a1a; word-break: break-word; }
+  .task-memo { font-size: 12px; color: #aaa; margin-top: 2px; word-break: break-word; }
+  .task-meta { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; align-items: center; }
+  .meta-chip { font-size: 11px; color: #bbb; }
+  .meta-chip.date-chip { color: #d8d8d8; }
+  .meta-chip.deadline-chip { color: #bbb; }
+  .meta-chip.deadline-today { color: #e24b4a; font-weight: 500; }
+  .meta-chip.deadline-soon { color: #BA7517; }
+  .task-del {
+    font-size: 16px; color: #ddd; cursor: pointer; line-height: 1;
+    padding: 1px; border-radius: 4px; opacity: 0; transition: opacity .15s;
+    flex-shrink: 0; background: none; border: none;
+  }
+  .task-row:hover .task-del { opacity: 1; }
+  .task-del:hover { color: #aaa; }
+  .done-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f2f2f2; }
+  .done-row:last-child { border-bottom: none; }
+  .done-cb {
+    width: 16px; height: 16px; border-radius: 4px;
+    flex-shrink: 0; margin-top: 3px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    background: #5DCAA5; border: 1.5px solid #5DCAA5; transition: all .15s;
+  }
+  .done-cb.sel { background: #e24b4a; border-color: #e24b4a; }
+  .done-body { flex: 1; min-width: 0; }
+  .done-text { font-size: 13px; color: #ccc; text-decoration: line-through; word-break: break-word; }
+  .done-memo { font-size: 12px; color: #ddd; margin-top: 2px; }
+  .done-meta { display: flex; gap: 8px; margin-top: 3px; flex-wrap: wrap; }
+  .done-chip { font-size: 11px; color: #ddd; }
+  .done-time { font-size: 11px; color: #d0d0d0; white-space: nowrap; margin-top: 3px; flex-shrink: 0; }
+  svg.chk { width: 9px; height: 9px; stroke: #fff; stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚡ 새 태스크 캡처</h1>
+  <div class="date" id="today-date"></div>
+  <div class="badges">
+    <span class="badge badge-today" id="badge-today">오늘 0</span>
+    <span class="badge badge-later" id="badge-later">나중 0</span>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-label">전체</div><div class="stat-value" id="cnt-total">0</div></div>
+  <div class="stat"><div class="stat-label">오늘 할 것</div><div class="stat-value" id="cnt-today">0</div></div>
+  <div class="stat"><div class="stat-label">완료</div><div class="stat-value" id="cnt-done">0</div></div>
+</div>
+
+<div class="input-area">
+  <input class="main-input" id="task-input" type="text" placeholder="태스크 입력 후 엔터 →" autocomplete="off">
+  <textarea class="memo-input" id="memo-input" placeholder="메모 (선택사항)" rows="1"></textarea>
+  <div class="meta-row">
+    <input class="mini-input" id="deadline-input" type="date">
+    <input class="mini-input" id="time-input" type="text" placeholder="예상 시간 (예: 30분)">
+    <select class="mini-input" id="bucket-select">
+      <option value="today">🟢 오늘 할 것</option>
+      <option value="later">🗂️ 나중 할 것</option>
+    </select>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-label">🟢 오늘 할 것</div>
+  <div class="card"><div id="today-list"><div class="empty">엔터로 태스크를 추가해보세요</div></div></div>
+</div>
+
+<div class="section">
+  <div class="section-label">🗂️ 나중 할 것</div>
+  <div class="card"><div id="later-list"><div class="empty">나중 할 것들이 여기 모입니다</div></div></div>
+</div>
+
+<div class="section">
+  <div class="section-label">
+    ✅ 완료 목록
+    <div class="label-actions">
+      <span class="del-sel-btn" id="del-sel-btn">선택 삭제</span>
+      <span class="clear-btn" id="clear-btn">전체 삭제</span>
+    </div>
+  </div>
+  <div class="card"><div id="done-list"><div class="empty">완료한 태스크가 여기 모입니다</div></div></div>
+</div>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const taskInput = $('task-input');
+  const memoInput = $('memo-input');
+  const deadlineInput = $('deadline-input');
+  const timeInput = $('time-input');
+  const bucketSelect = $('bucket-select');
+  const delSelBtn = $('del-sel-btn');
+
+  const DAYS = ['일','월','화','수','목','금','토'];
+  const now = new Date();
+  $('today-date').textContent =
+    now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 (' + DAYS[now.getDay()] + ')';
+
+  const KEY = 'task_capture_v3';
+  let state = { tasks: [], done: [], counter: 0, lastDate: '' };
+  let sel = new Set();
+
+  function todayStr() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function fmtDeadline(s) {
+    if (!s) return '';
+    const [y, m, d] = s.split('-');
+    const today = todayStr();
+    const diff = Math.round((new Date(s) - new Date(today)) / 86400000);
+    let label = m + '/' + d;
+    if (diff === 0) return { text: '📅 오늘 마감', cls: 'deadline-today' };
+    if (diff === 1) return { text: '📅 ' + label + ' (내일)', cls: 'deadline-soon' };
+    if (diff < 0) return { text: '📅 ' + label + ' (지남)', cls: 'deadline-today' };
+    if (diff <= 3) return { text: '📅 ' + label + ' (' + diff + '일 후)', cls: 'deadline-soon' };
+    return { text: '📅 ' + label, cls: 'deadline-chip' };
+  }
+
+  function fmtDate(s) {
+    if (!s) return '';
+    const p = s.split('-');
+    return p[1] + '/' + p[2];
+  }
+
+  function timeNow() {
+    const d = new Date();
+    return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+  }
+
+  function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function load() {
+    try { const s = localStorage.getItem(KEY); if (s) state = JSON.parse(s); } catch(e) {}
+  }
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e) {}
+  }
+
+  function dailyReset() {
+    const today = todayStr();
+    if (state.lastDate && state.lastDate !== today) {
+      let movedToLater = 0;
+      state.tasks = state.tasks.map(t => {
+        if (t.bucket === 'today') { movedToLater++; return {...t, bucket: 'later'}; }
+        return t;
+      });
+      if (movedToLater > 0) { state.done = []; sel.clear(); }
+    }
+    state.lastDate = today;
+
+    const today2 = todayStr();
+    let movedToToday = 0;
+    state.tasks = state.tasks.map(t => {
+      if (t.bucket === 'later' && t.deadline && t.deadline <= today2) {
+        movedToToday++;
+        return {...t, bucket: 'today'};
+      }
+      return t;
+    });
+
+    save();
+    return { movedToLater: state.lastDate !== today ? 0 : 0, movedToToday };
+  }
+
+  function applyDailyReset() {
+    const today = todayStr();
+    const wasYesterday = state.lastDate && state.lastDate !== today;
+
+    let movedToLater = 0;
+    if (wasYesterday) {
+      state.tasks = state.tasks.map(t => {
+        if (t.bucket === 'today') { movedToLater++; return {...t, bucket: 'later'}; }
+        return t;
+      });
+      if (movedToLater > 0) { state.done = []; sel.clear(); }
+    }
+    state.lastDate = today;
+
+    let movedToToday = 0;
+    state.tasks = state.tasks.map(t => {
+      if (t.bucket === 'later' && t.deadline && t.deadline <= today) {
+        movedToToday++;
+        return {...t, bucket: 'today'};
+      }
+      return t;
+    });
+
+    save();
+
+    if (wasYesterday && movedToLater > 0) {
+      showBanner('🌅 새 날이에요. 어제 "오늘 할 것" ' + movedToLater + '개를 "나중 할 것"으로 옮겼어요.', '#EEEDFE', '#3C3489');
+    }
+    if (movedToToday > 0) {
+      showBanner('📅 마감일이 된 태스크 ' + movedToToday + '개를 "오늘 할 것"으로 올렸어요.', '#E1F5EE', '#0F6E56');
+    }
+  }
+
+  function showBanner(msg, bg, color) {
+    const b = document.createElement('div');
+    b.style.cssText = 'background:' + bg + ';color:' + color + ';font-size:12px;padding:9px 14px;border-radius:8px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;';
+    const closeId = 'cb-' + Date.now();
+    b.innerHTML = '<span>' + msg + '</span><span style="cursor:pointer;opacity:.5;font-size:15px;margin-left:10px" id="' + closeId + '">×</span>';
+    document.body.insertBefore(b, document.body.firstChild);
+    document.getElementById(closeId).addEventListener('click', () => b.remove());
+  }
+
+  function buildMeta(t, isDone) {
+    const chips = [];
+    if (t.addedDate) chips.push('<span class="' + (isDone ? 'done-chip' : 'meta-chip date-chip') + '">추가 ' + fmtDate(t.addedDate) + '</span>');
+    if (t.deadline) {
+      if (isDone) {
+        chips.push('<span class="done-chip">📅 ' + fmtDate(t.deadline) + '</span>');
+      } else {
+        const dl = fmtDeadline(t.deadline);
+        chips.push('<span class="meta-chip ' + dl.cls + '">' + esc(dl.text) + '</span>');
+      }
+    }
+    if (t.time) chips.push('<span class="' + (isDone ? 'done-chip' : 'meta-chip') + '">⏱ ' + esc(t.time) + '</span>');
+    return chips.length ? '<div class="' + (isDone ? 'done-meta' : 'task-meta') + '">' + chips.join('') + '</div>' : '';
+  }
+
+  function renderTasks(listEl, items, bucket) {
+    if (!items.length) {
+      listEl.innerHTML = '<div class="empty">' + (bucket === 'today' ? '엔터로 태스크를 추가해보세요' : '나중 할 것들이 여기 모입니다') + '</div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    items.forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'task-row';
+      row.innerHTML =
+        '<div class="task-check" data-id="' + t.id + '"><svg class="chk" viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div>' +
+        '<div class="task-body">' +
+          '<div class="task-text">' + esc(t.text) + '</div>' +
+          (t.memo ? '<div class="task-memo">' + esc(t.memo) + '</div>' : '') +
+          buildMeta(t, false) +
+        '</div>' +
+        '<button class="task-del" data-id="' + t.id + '" aria-label="삭제">×</button>';
+      listEl.appendChild(row);
+      row.querySelector('.task-check').addEventListener('click', function () {
+        const id = +this.dataset.id;
+        const idx = state.tasks.findIndex(x => x.id === id);
+        if (idx !== -1) {
+          const removed = state.tasks.splice(idx, 1)[0];
+          state.done.unshift({...removed, doneAt: timeNow()});
+          save(); render();
+        }
+      });
+      row.querySelector('.task-del').addEventListener('click', function () {
+        state.tasks = state.tasks.filter(x => x.id !== +this.dataset.id);
+        save(); render();
+      });
+    });
+  }
+
+  function renderDone() {
+    const el = $('done-list');
+    if (!state.done.length) {
+      el.innerHTML = '<div class="empty">완료한 태스크가 여기 모입니다</div>';
+      delSelBtn.classList.remove('on'); return;
+    }
+    el.innerHTML = '';
+    state.done.forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'done-row';
+      const isSel = sel.has(t.id);
+      row.innerHTML =
+        '<div class="done-cb' + (isSel ? ' sel' : '') + '" data-id="' + t.id + '" title="선택해서 삭제">' +
+          '<svg class="chk" viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg>' +
+        '</div>' +
+        '<div class="done-body">' +
+          '<div class="done-text">' + esc(t.text) + '</div>' +
+          (t.memo ? '<div class="done-memo">' + esc(t.memo) + '</div>' : '') +
+          buildMeta(t, true) +
+        '</div>' +
+        '<div class="done-time">' + (t.doneAt || '') + '</div>';
+      el.appendChild(row);
+      row.querySelector('.done-cb').addEventListener('click', function () {
+        const id = +this.dataset.id;
+        sel.has(id) ? sel.delete(id) : sel.add(id);
+        this.classList.toggle('sel', sel.has(id));
+        updateDelBtn();
+      });
+    });
+    updateDelBtn();
+  }
+
+  function updateDelBtn() {
+    const n = sel.size;
+    delSelBtn.classList.toggle('on', n > 0);
+    delSelBtn.textContent = n > 0 ? '선택 삭제 (' + n + ')' : '선택 삭제';
+  }
+
+  function render() {
+    const todayT = state.tasks.filter(t => t.bucket === 'today');
+    const laterT = state.tasks.filter(t => t.bucket === 'later');
+    renderTasks($('today-list'), todayT, 'today');
+    renderTasks($('later-list'), laterT, 'later');
+    renderDone();
+    $('cnt-total').textContent = state.tasks.length;
+    $('cnt-today').textContent = todayT.length;
+    $('cnt-done').textContent = state.done.length;
+    $('badge-today').textContent = '오늘 ' + todayT.length;
+    $('badge-later').textContent = '나중 ' + laterT.length;
+  }
+
+  function addTask() {
+    const text = taskInput.value.trim();
+    if (!text) return;
+    const deadline = deadlineInput.value;
+    const today = todayStr();
+    const bucket = deadline && deadline <= today ? 'today' : bucketSelect.value;
+    state.tasks.push({
+      id: ++state.counter,
+      text,
+      memo: memoInput.value.trim(),
+      deadline,
+      time: timeInput.value.trim(),
+      bucket,
+      addedDate: today
+    });
+    taskInput.value = ''; memoInput.value = '';
+    deadlineInput.value = ''; timeInput.value = '';
+    taskInput.focus();
+    save(); render();
+  }
+
+  taskInput.addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
+  $('clear-btn').addEventListener('click', () => { state.done = []; sel.clear(); save(); render(); });
+  delSelBtn.addEventListener('click', () => {
+    state.done = state.done.filter(t => !sel.has(t.id));
+    sel.clear(); save(); render();
+  });
+
+  load(); applyDailyReset(); render();
+})();
+</script>
+</body>
+</html>
